@@ -8,6 +8,7 @@ public class ArmageddonApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(ArmageddonApplication.class, args);
+        // 조그마한 변경사항
     }
 
 }
