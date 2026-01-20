@@ -54,10 +54,10 @@ class TransactionControllerTest {
         given(jwtTokenProvider.getUserIdFromJWT(anyString())).willReturn(USER_NO);
 
         // when & then
-        mockMvc.perform(post("/transaction/write")
-                .header("Authorization", TOKEN)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(post("/api/transaction/write")
+                        .header("Authorization", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"));
 
@@ -75,10 +75,10 @@ class TransactionControllerTest {
         given(jwtTokenProvider.getUserIdFromJWT(anyString())).willReturn(USER_NO);
 
         // when & then
-        mockMvc.perform(put("/transaction/edit/{transactionId}", transactionId)
-                .header("Authorization", TOKEN)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(put("/api/transaction/edit/{transactionId}", transactionId)
+                        .header("Authorization", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"));
 
@@ -93,8 +93,8 @@ class TransactionControllerTest {
         given(jwtTokenProvider.getUserIdFromJWT(anyString())).willReturn(USER_NO);
 
         // when & then
-        mockMvc.perform(delete("/transaction/delete/{transactionId}", transactionId)
-                .header("Authorization", TOKEN))
+        mockMvc.perform(delete("/api/transaction/delete/{transactionId}", transactionId)
+                        .header("Authorization", TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"));
 

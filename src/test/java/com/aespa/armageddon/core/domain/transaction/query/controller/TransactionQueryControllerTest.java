@@ -85,8 +85,8 @@ class TransactionQueryControllerTest {
         given(transactionQueryService.getLatelyTransactions(1L)).willReturn(List.of(response));
 
         // when & then
-        mockMvc.perform(get("/transaction/list")
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/transaction/list")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data[0].title").value("최근거래"));
@@ -104,9 +104,9 @@ class TransactionQueryControllerTest {
         given(transactionQueryService.getDailyTransactions(1L, date)).willReturn(List.of(response));
 
         // when & then
-        mockMvc.perform(get("/transaction/daily")
-                .param("date", "2024-05-20")
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/transaction/daily")
+                        .param("date", "2024-05-20")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data[0].title").value("일간거래"));
@@ -123,9 +123,9 @@ class TransactionQueryControllerTest {
         given(transactionQueryService.getDailySummary(1L, date)).willReturn(response);
 
         // when & then
-        mockMvc.perform(get("/transaction/daily/summary")
-                .param("date", "2024-05-20")
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/transaction/daily/summary")
+                        .param("date", "2024-05-20")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.balance").value(500));
@@ -142,10 +142,10 @@ class TransactionQueryControllerTest {
         given(transactionQueryService.getMonthlySummary(1L, year, month)).willReturn(response);
 
         // when & then
-        mockMvc.perform(get("/transaction/monthly")
-                .param("year", String.valueOf(year))
-                .param("month", String.valueOf(month))
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/transaction/monthly")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.balance").value(5000));
