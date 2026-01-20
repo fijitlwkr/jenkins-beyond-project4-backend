@@ -30,75 +30,75 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class TransactionQueryController {
 
-        private final TransactionQueryService transactionQueryService;
-        private final UserRepository userRepository;
+    private final TransactionQueryService transactionQueryService;
+    private final UserRepository userRepository;
 
-        /* 최근 거래 내역 리스트 조회 */
-        @GetMapping("/list")
-        @Operation(summary = "Get top 5 recent transactions")
-        public ApiResult<List<TransactionLatelyResponse>> getLatelyTransactions(
-                        @AuthenticationPrincipal UserDetails userDetails) {
+    /* 최근 거래 내역 리스트 조회 */
+    @GetMapping("/list")
+    @Operation(summary = "Get top 5 recent transactions")
+    public ApiResult<List<TransactionLatelyResponse>> getLatelyTransactions(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-                User user = userRepository.findByLoginId(userDetails.getUsername())
-                                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+        User user = userRepository.findByLoginId(userDetails.getUsername())
+                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-                return ApiResult.success(transactionQueryService.getLatelyTransactions(user.getId()));
-        }
+        return ApiResult.success(transactionQueryService.getLatelyTransactions(user.getId()));
+    }
 
-        /* 일간 상세 내역 조회 (날짜 클릭 시 리스트) */
-        @GetMapping("/daily")
-        @Operation(summary = "Get daily transactions")
-        public ApiResult<List<TransactionDailyResponse>> getDailyTransactions(
-                        @AuthenticationPrincipal UserDetails userDetails,
-                        @Parameter(description = "Date to query (YYYY-MM-DD)")
-                        @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+    /* 일간 상세 내역 조회 (날짜 클릭 시 리스트) */
+    @GetMapping("/daily")
+    @Operation(summary = "Get daily transactions")
+    public ApiResult<List<TransactionDailyResponse>> getDailyTransactions(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Date to query (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 
-                User user = userRepository.findByLoginId(userDetails.getUsername())
-                                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+        User user = userRepository.findByLoginId(userDetails.getUsername())
+                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-                return ApiResult.success(transactionQueryService.getDailyTransactions(user.getId(), date));
-        }
+        return ApiResult.success(transactionQueryService.getDailyTransactions(user.getId(), date));
+    }
 
-        /* 수입, 지출 입력/수정 모달창*/
-        @GetMapping("/modal")
-        @Operation(summary = "Get transaction detail")
-        public ApiResult<List<TransactionResponse>> getTransactions(
-                        @AuthenticationPrincipal UserDetails userDetails,
-                        @Parameter(description = "Transaction ID")
-                        @RequestParam Long transactionId
-                        ) {
+    /* 수입, 지출 입력/수정 모달창*/
+    @GetMapping("/modal")
+    @Operation(summary = "Get transaction detail")
+    public ApiResult<List<TransactionResponse>> getTransactions(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Transaction ID")
+            @RequestParam Long transactionId
+    ) {
 
-                User user = userRepository.findByLoginId(userDetails.getUsername())
-                        .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+        User user = userRepository.findByLoginId(userDetails.getUsername())
+                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-                return ApiResult.success(transactionQueryService.getTransactions(user.getId(), transactionId));
-        }
+        return ApiResult.success(transactionQueryService.getTransactions(user.getId(), transactionId));
+    }
 
-        /* 일간 총 수입/지출/잔액 요약 조회 */
-        @GetMapping("/daily/summary")
-        @Operation(summary = "Get daily transaction summary(income, expense, balance)")
-        public ApiResult<TransactionSummaryResponse> getDailySummary(
-                        @AuthenticationPrincipal UserDetails userDetails,
-                        @Parameter(description = "Date to query (YYYY-MM-DD)")
-                        @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+    /* 일간 총 수입/지출/잔액 요약 조회 */
+    @GetMapping("/daily/summary")
+    @Operation(summary = "Get daily transaction summary(income, expense, balance)")
+    public ApiResult<TransactionSummaryResponse> getDailySummary(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Date to query (YYYY-MM-DD)")
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 
-                User user = userRepository.findByLoginId(userDetails.getUsername())
-                                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+        User user = userRepository.findByLoginId(userDetails.getUsername())
+                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-                return ApiResult.success(transactionQueryService.getDailySummary(user.getId(), date));
-        }
+        return ApiResult.success(transactionQueryService.getDailySummary(user.getId(), date));
+    }
 
-        /* 월간 요약 정보 조회 (수입, 지출, 잔액) */
-        @GetMapping("/monthly")
-        @Operation(summary = "Get monthly transaction summary")
-        public ApiResult<TransactionSummaryResponse> getMonthlySummary(
-                        @AuthenticationPrincipal UserDetails userDetails,
-                        @Parameter(description = "Year (e.g. 2025)") @RequestParam int year,
-                        @Parameter(description = "Month (1-12)") @RequestParam int month) {
+    /* 월간 요약 정보 조회 (수입, 지출, 잔액) */
+    @GetMapping("/monthly")
+    @Operation(summary = "Get monthly transaction summary")
+    public ApiResult<TransactionSummaryResponse> getMonthlySummary(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Year (e.g. 2025)") @RequestParam int year,
+            @Parameter(description = "Month (1-12)") @RequestParam int month) {
 
-                User user = userRepository.findByLoginId(userDetails.getUsername())
-                                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+        User user = userRepository.findByLoginId(userDetails.getUsername())
+                .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-                return ApiResult.success(transactionQueryService.getMonthlySummary(user.getId(), year, month));
-        }
+        return ApiResult.success(transactionQueryService.getMonthlySummary(user.getId(), year, month));
+    }
 }

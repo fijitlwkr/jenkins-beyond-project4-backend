@@ -29,8 +29,6 @@ public class Goal {
     @Column(nullable = false)
     private Integer targetAmount;
 
-    // 저축 목표: 사용
-    // 지출 목표: 월 시작/종료일 자동 세팅
     private LocalDate startDate;
     private LocalDate endDate;
 
@@ -46,14 +44,15 @@ public class Goal {
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
 
-    /* ================= 생성/수정 로직 ================= */
+    /* ================= 생성 ================= */
 
     public static Goal createSavingGoal(
             Long userId,
             String title,
             Integer targetAmount,
             LocalDate startDate,
-            LocalDate endDate) {
+            LocalDate endDate
+    ) {
         Goal goal = new Goal();
         goal.userId = userId;
         goal.goalType = GoalType.SAVING;
@@ -73,7 +72,8 @@ public class Goal {
             String title,
             Integer targetAmount,
             LocalDate startDate,
-            LocalDate endDate) {
+            LocalDate endDate
+    ) {
         Goal goal = new Goal();
         goal.userId = userId;
         goal.goalType = GoalType.EXPENSE;
@@ -88,36 +88,70 @@ public class Goal {
         return goal;
     }
 
-    public void updateTarget(String title, Integer targetAmount, LocalDate startDate, LocalDate endDate) {
-        if (this.status == GoalStatus.COMPLETED || this.status == GoalStatus.FAILED) {
-            throw new IllegalStateException("완료되거나 실패한 목표는 수정할 수 없습니다.");
+    /* ================= 수정 ================= */
+
+    public void updateTarget(
+            String title,
+            Integer targetAmount,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        if (this.status != GoalStatus.ACTIVE) {
+            throw new IllegalStateException("진행 중인 목표만 수정할 수 있습니다.");
         }
 
         if (title != null && !title.isBlank()) {
             this.title = title;
         }
+
         this.targetAmount = targetAmount;
         this.startDate = startDate;
         this.endDate = endDate;
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void checkStatus(int progressRate) {
+    /* ================= 상태 전이 ================= */
+
+    /**
+     * 현재 금액을 기준으로 상태 갱신
+     * - SAVING
+     *   - current >= target → COMPLETED
+     *   - 기간 만료 & 미달 → FAILED
+     * - EXPENSE
+     *   - current > target → EXCEEDED
+     *   - 기간 만료 & 이하 → SUCCESS
+     */
+    public void updateStatus(int currentAmount) {
         if (this.status != GoalStatus.ACTIVE) {
             return;
         }
 
-        // 100% 달성 시 완료 처리
-        if (progressRate >= 100) {
-            complete();
+        LocalDate today = LocalDate.now();
+
+        if (goalType == GoalType.SAVING) {
+            if (currentAmount >= targetAmount) {
+                complete();
+                return;
+            }
+
+            if (today.isAfter(endDate)) {
+                failSavingGoal();
+            }
             return;
         }
 
-        // 기간 만료 시 처리
-        if (LocalDate.now().isAfter(endDate)) {
-            fail();
+        // EXPENSE
+        if (currentAmount > targetAmount) {
+            exceedExpenseGoal();
+            return;
+        }
+
+        if (today.isAfter(endDate)) {
+            succeedExpenseGoal();
         }
     }
+
+    /* ================= 내부 전용 ================= */
 
     private void complete() {
         this.status = GoalStatus.COMPLETED;
@@ -125,8 +159,28 @@ public class Goal {
         this.updatedAt = LocalDateTime.now();
     }
 
-    private void fail() {
+    private void failSavingGoal() {
+        if (this.goalType != GoalType.SAVING) {
+            throw new IllegalStateException("저축 목표만 실패 처리할 수 있습니다.");
+        }
         this.status = GoalStatus.FAILED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    private void exceedExpenseGoal() {
+        if (this.goalType != GoalType.EXPENSE) {
+            throw new IllegalStateException("지출 목표만 초과 처리할 수 있습니다.");
+        }
+        this.status = GoalStatus.EXCEEDED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    private void succeedExpenseGoal() {
+        if (this.goalType != GoalType.EXPENSE) {
+            throw new IllegalStateException("지출 목표만 성공 처리할 수 있습니다.");
+        }
+        this.status = GoalStatus.SUCCESS;
+        this.completedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -134,5 +188,4 @@ public class Goal {
         this.status = GoalStatus.DELETED;
         this.updatedAt = LocalDateTime.now();
     }
-
 }

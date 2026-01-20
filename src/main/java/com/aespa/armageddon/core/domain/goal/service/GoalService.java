@@ -8,9 +8,6 @@ import com.aespa.armageddon.core.domain.goal.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -23,26 +20,29 @@ public class GoalService {
 
     /* ===================== 조회 ===================== */
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<GoalResponse> getGoals(Long userId) {
-        return goalRepository.findByUserIdAndStatusNot(userId, GoalStatus.DELETED)
-                .stream()
+        List<Goal> goals = goalRepository.findByUserIdAndStatusNot(userId, GoalStatus.DELETED);
+
+        // 상태 최신화
+        for (Goal goal : goals) {
+            refreshGoalStatus(goal);
+        }
+
+        return goals.stream()
                 .map(this::toGoalResponse)
                 .toList();
     }
 
-    // 상세 조회 시 상태 업데이트 로직이 포함되므로 readOnly = true 제거 혹은 별도 처리 필요
-    // 하지만 JPA Dirty Checking을 이용하려면 트랜잭션 내에서 엔티티 변경이 일어나야 함
+    @Transactional
     public GoalDetailResponse getGoalDetail(Long userId, Long goalId) {
         Goal goal = findGoal(userId, goalId);
 
+        // 상태 최신화
+        refreshGoalStatus(goal);
+
         int currentAmount = getCurrentAmount(goal);
-        int progressRate = calculateRate(currentAmount, goal.getTargetAmount());
-
-        // 상태 체크 및 업데이트 (Dirty Checking)
-        goal.checkStatus(progressRate);
-
-        Integer expectedAmount = calculateExpectedAmount(goal, currentAmount);
+        int progressRate = calculateRate(goal, currentAmount);
 
         return new GoalDetailResponse(
                 goal.getGoalId(),
@@ -51,8 +51,7 @@ public class GoalService {
                 goal.getTargetAmount(),
                 currentAmount,
                 progressRate,
-                expectedAmount,
-                createStatusMessage(goal, currentAmount, expectedAmount),
+                createStatusMessage(goal),
                 goal.getStartDate(),
                 goal.getEndDate(),
                 goal.getStatus(),
@@ -62,9 +61,7 @@ public class GoalService {
     /* ===================== 생성 ===================== */
 
     public void createSavingGoal(Long userId, CreateSavingGoalRequest request) {
-        if (goalRepository.existsByUserIdAndGoalTypeAndStatus(userId, GoalType.SAVING, GoalStatus.ACTIVE)) {
-            throw new IllegalStateException("이미 진행 중인 저축 목표가 있습니다.");
-        }
+        validateDuplicateSavingGoal(userId);
 
         Goal goal = Goal.createSavingGoal(
                 userId,
@@ -72,14 +69,12 @@ public class GoalService {
                 request.targetAmount(),
                 request.startDate(),
                 request.endDate());
+
         goalRepository.save(goal);
     }
 
     public void createExpenseGoal(Long userId, CreateExpenseGoalRequest request) {
-        if (goalRepository.existsByUserIdAndGoalTypeAndExpenseCategoryAndStatus(userId, GoalType.EXPENSE,
-                request.category(), GoalStatus.ACTIVE)) {
-            throw new IllegalStateException("해당 카테고리에 이미 진행 중인 지출 목표가 있습니다.");
-        }
+        validateDuplicateExpenseGoal(userId, request.category());
 
         Goal goal = Goal.createExpenseGoal(
                 userId,
@@ -88,6 +83,7 @@ public class GoalService {
                 request.targetAmount(),
                 request.startDate(),
                 request.endDate());
+
         goalRepository.save(goal);
     }
 
@@ -95,12 +91,23 @@ public class GoalService {
 
     public void updateGoal(Long userId, Long goalId, UpdateGoalRequest request) {
         Goal goal = findGoal(userId, goalId);
-        goal.updateTarget(request.title(), request.targetAmount(), request.startDate(), request.endDate());
+        goal.updateTarget(
+                request.title(),
+                request.targetAmount(),
+                request.startDate(),
+                request.endDate());
     }
 
     public void deleteGoal(Long userId, Long goalId) {
         Goal goal = findGoal(userId, goalId);
-        goalRepository.delete(goal);
+        goal.delete();
+    }
+
+    /* ===================== 상태 갱신 (유일한 변경 지점) ===================== */
+
+    public void refreshGoalStatus(Goal goal) {
+        int currentAmount = getCurrentAmount(goal);
+        goal.updateStatus(currentAmount);
     }
 
     /* ===================== 내부 로직 ===================== */
@@ -117,75 +124,68 @@ public class GoalService {
                 goal.getExpenseCategory(),
                 goal.getStartDate(),
                 goal.getEndDate());
-        return sum.intValue();
+        return sum == null ? 0 : sum.intValue();
     }
 
-    private int calculateRate(int current, int target) {
-        if (target == 0)
+    private int calculateRate(Goal goal, int currentAmount) {
+        if (goal.getTargetAmount() == 0)
             return 0;
-        return Math.min((current * 100) / target, 100);
-    }
 
-    private Integer calculateExpectedAmount(Goal goal, int currentAmount) {
-        if (goal.getGoalType() != GoalType.SAVING)
-            return null;
-        if (goal.getStatus() != GoalStatus.ACTIVE)
-            return null; // 완료/실패된 목표는 예측 불필요
+        int rate = (currentAmount * 100) / goal.getTargetAmount();
 
-        long totalDays = ChronoUnit.DAYS.between(goal.getStartDate(), goal.getEndDate()) + 1;
-        long passedDays = ChronoUnit.DAYS.between(goal.getStartDate(), LocalDate.now()) + 1;
-
-        if (passedDays <= 0)
-            return null;
-
-        int dailyAverage = (int) (currentAmount / passedDays);
-        return dailyAverage * (int) totalDays;
-    }
-
-    private String createStatusMessage(Goal goal, int current, Integer expected) {
-        if (goal.getStatus() == GoalStatus.COMPLETED) {
-            return "축하합니다! 목표를 달성했어요!";
-        }
-        if (goal.getStatus() == GoalStatus.FAILED) {
-            return "아쉽게도 목표 달성에 실패했어요.";
-        }
-
+        // ✔️ 지출 목표는 100% 초과 허용
         if (goal.getGoalType() == GoalType.EXPENSE) {
-            int remaining = goal.getTargetAmount() - current;
-            if (remaining < 0)
-                return "이번 달 목표를 초과했어요";
-
-            double rate = (double) current / goal.getTargetAmount();
-            if (rate >= 0.8)
-                return "목표 금액에 가까워지고 있어요. 주의하세요!";
-
-            return "아직 여유가 있어요";
+            return rate;
         }
 
-        if (expected == null)
-            return "조금 더 지켜볼게요";
+        return Math.min(rate, 100);
+    }
 
-        int diff = expected - goal.getTargetAmount();
-        if (diff > 0)
-            return "현재 속도라면 목표보다 더 모을 수 있어요";
-        if (diff < 0)
-            return "현재 속도라면 목표 금액에 조금 못 미칠 수 있어요";
-        return "현재 페이스로 목표 달성이 가능해요";
+    private String createStatusMessage(Goal goal) {
+        return switch (goal.getStatus()) {
+            case COMPLETED -> goal.getGoalType() == GoalType.EXPENSE
+                    ? "이번 달 지출 목표를 잘 지켰어요!"
+                    : "축하합니다! 목표를 달성했어요!";
+            case FAILED -> "아쉽게도 목표 달성에 실패했어요";
+            case EXCEEDED -> "지출 목표 금액을 초과했어요";
+            case ACTIVE -> goal.getGoalType() == GoalType.EXPENSE
+                    ? ""
+                    : "목표를 향해 진행 중이에요";
+            default -> "";
+        };
     }
 
     private GoalResponse toGoalResponse(Goal goal) {
         int current = getCurrentAmount(goal);
-        int rate = calculateRate(current, goal.getTargetAmount());
+        int rate = calculateRate(goal, current);
 
         return new GoalResponse(
                 goal.getGoalId(),
                 goal.getGoalType(),
                 goal.getTitle(),
                 goal.getTargetAmount(),
+                current,
                 rate,
                 goal.getStatus(),
+                createStatusMessage(goal),
                 goal.getExpenseCategory(),
                 goal.getStartDate(),
                 goal.getEndDate());
+    }
+
+    /* ===================== 검증 ===================== */
+
+    private void validateDuplicateSavingGoal(Long userId) {
+        if (goalRepository.existsByUserIdAndGoalTypeAndStatus(
+                userId, GoalType.SAVING, GoalStatus.ACTIVE)) {
+            throw new IllegalStateException("이미 진행 중인 저축 목표가 있습니다.");
+        }
+    }
+
+    private void validateDuplicateExpenseGoal(Long userId, ExpenseCategory category) {
+        if (goalRepository.existsByUserIdAndGoalTypeAndExpenseCategoryAndStatus(
+                userId, GoalType.EXPENSE, category, GoalStatus.ACTIVE)) {
+            throw new IllegalStateException("해당 카테고리에 이미 진행 중인 지출 목표가 있습니다.");
+        }
     }
 }

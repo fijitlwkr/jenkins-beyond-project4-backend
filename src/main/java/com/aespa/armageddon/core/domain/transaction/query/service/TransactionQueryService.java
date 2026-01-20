@@ -65,9 +65,9 @@ public class TransactionQueryService {
     }
 
     public Long getTransactionSum(Long userNo,
-            com.aespa.armageddon.core.domain.transaction.command.domain.aggregate.Category category,
-            com.aespa.armageddon.core.domain.transaction.command.domain.aggregate.TransactionType type,
-            LocalDate startDate, LocalDate endDate) {
+                                  com.aespa.armageddon.core.domain.transaction.command.domain.aggregate.Category category,
+                                  com.aespa.armageddon.core.domain.transaction.command.domain.aggregate.TransactionType type,
+                                  LocalDate startDate, LocalDate endDate) {
         return transactionQueryRepository.findSum(userNo, category, type, startDate, endDate);
     }
 
