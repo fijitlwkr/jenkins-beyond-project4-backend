@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/transaction")
+@RequestMapping("/api/transaction")
 @Tag(name = "Transactions", description = "Transaction write endpoints")
 @SecurityRequirement(name = "bearerAuth")
 public class TransactionController {

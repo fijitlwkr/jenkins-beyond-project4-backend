@@ -25,7 +25,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/transaction")
+@RequestMapping("/api/transaction")
 @Tag(name = "Transactions", description = "Transaction query endpoints")
 @SecurityRequirement(name = "bearerAuth")
 public class TransactionQueryController {
